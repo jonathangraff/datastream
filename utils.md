@@ -1,8 +1,10 @@
 **Solution so far**
 
-* it works for shell pipe '|' and for pipe file but not tested.
+* it works for shell pipe '|' and for pipe file but not tested with unitest.
 * the average calculation might be calculated directly using binary
-* refactoring and docstring ...
+* refactoring and docstring
+* additional tests
+* avoid sleep
 
 **To display the binary file numbers content on the shell:**
 * single precision (32 bit)
