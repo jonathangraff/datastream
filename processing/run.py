@@ -43,7 +43,7 @@ def process_streams(streams):
         results = compute_averages(numbers, win_len)
         print(results)
         for result in results:
-            output_file.write(bytearray(struct.pack("f", result)) )
+            output_file.write(struct.pack("d", result))
         output_file.close()
 
         
