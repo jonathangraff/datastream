@@ -42,7 +42,7 @@ $ ./datastream.sh data/sample-data-in,- | python decode_binary.py
 4.0
 
 $ # Start 2 data streams sequentially, outputting the same data to 2 named pipes 
-$ # `output1` and `output1`
+$ # `output1` and `output2`
 $ ./datastream.sh data/sample-data-in,output1 data/sample-data-in,output2
 $ # In a separate terminal, we could run `cat output1`, then `cat output2` to
 $ # retrieve the content of 'sample-data-in'

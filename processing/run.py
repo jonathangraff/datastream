@@ -6,7 +6,7 @@ import os.path
 import shlex
 import struct
 import subprocess
-from time import sleep
+from time import time
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent
 # streams is a list of tuples (window_length, input_file, output_file)
 def process_streams(streams):
     def decode(buffer):
-        n = len(buffer)//8
+        n = len(buffer) // 8
         return [struct.unpack("<d", buffer[i * 8 : (i + 1) * 8])[0] for i in range(n)]
     
     def compute_averages(numbers, win_len):
@@ -30,23 +30,24 @@ def process_streams(streams):
 
         numbers = decode(input_file.read())
         print(numbers)
-        input_file.close()
         results = compute_averages(numbers, win_len)
         print(results)
         for result in results:
             output_file.write(struct.pack("<d", result))
-        output_file.close()
-
-        
+   
 
 if __name__ == "__main__":
+    timeout_in_seconds = 10
     stream_params = []
-    sleep(0.01)  # TODO: a bit hacky, wait a bit for the first stream to be available
     for arg in sys.argv[1:]:
         win_len, infilename, outfilename = arg.split(",")
         if infilename == "-":
             infile = sys.stdin.buffer
         else:
+            now = time()
+            while not os.path.exists(infilename):
+                if time() > now + timeout_in_seconds:
+                    raise Exception(f"Waiting for {infilename} for more than {timeout_in_seconds} seconds.") 
             infile = open(infilename, "rb")
         if outfilename == "-":
             outfile = sys.stdout.buffer
