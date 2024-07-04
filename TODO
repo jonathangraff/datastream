@@ -1,0 +1,3 @@
+- je dois enlever les outputfiles à la main, le open(infilename, "rb") ne marche pas lors d'un deuxième essai
+- besoin de vérifier que le stdin existe ?? d'attendre qu'il existe ??
+- rajouter des tests

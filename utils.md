@@ -10,7 +10,7 @@
 * single precision (32 bit)
  
   `cat out | od -An -t f4`
-  
+
 * double precision (64 bit)
   
   `cat out | od -An -t f8`
