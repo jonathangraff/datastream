@@ -49,7 +49,7 @@ def decode(buffer):
 def process_streams(streams):
     chunk_size = 8
     for stream in streams:
-        print( 'start stream')
+        print('start stream')
         (window_length, input_file, output_file) = stream
         data_in = input_file.read(chunk_size)
         window = deque([])

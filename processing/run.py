@@ -14,17 +14,8 @@ ROOT = Path(__file__).parent
 # streams is a list of tuples (window_length, input_file, output_file)
 def process_streams(streams):
     def decode(buffer):
-        i = 0
-        numbers = []
-        while True:
-            try:
-                buffer8 = buffer[i : i + 8]
-                to_add = struct.unpack("<d", buffer8)[0]
-                numbers.append(to_add)
-                i += 8
-            except struct.error:
-                break
-        return numbers
+        n = len(buffer)//8
+        return [struct.unpack("<d", buffer[i * 8 : (i + 1) * 8])[0] for i in range(n)]
     
     def compute_averages(numbers, win_len):
         if len(numbers) < win_len:
@@ -43,7 +34,7 @@ def process_streams(streams):
         results = compute_averages(numbers, win_len)
         print(results)
         for result in results:
-            output_file.write(struct.pack("d", result))
+            output_file.write(struct.pack("<d", result))
         output_file.close()
 
         
