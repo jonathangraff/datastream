@@ -8,15 +8,16 @@ import getopt
 from time import time
 from pathlib import Path
 
+from model.stream import Stream_params
+
 ROOT = Path(__file__).parent
-V_option = False
 
 def print_if_v(message):
     if VERBOSE_OPT:
         print(message)
 
-# streams is a list of tuples (window_length, input_file, output_file)
-def process_streams(streams):
+
+def process_streams(stream_params):
     def decode(buffer):
         n = len(buffer) // 8
         return [struct.unpack("<d", buffer[i * 8 : (i + 1) * 8])[0] for i in range(n)]
@@ -26,19 +27,23 @@ def process_streams(streams):
             return None
         outputs_number = len(numbers) - win_len + 1
         return [sum(numbers[i : i + win_len]) / win_len for i in range(outputs_number)]
-    print_if_v("processing")
-    for stream in streams:
-        win_len, input_file, output_file = stream
-        if os.path.exists(ROOT / output_file.name):
-            os.remove(ROOT / output_file.name)
+    print_if_v("Processing streams...")
+    
+    for stream_param in stream_params:
+        win_len = stream_param.win_len
+        infile_name = stream_param.infile.name
+        outfile_name = stream_param.outfile.name
+        if os.path.exists(ROOT / outfile_name):
+            os.remove(ROOT / outfile_name)
 
-        numbers = decode(input_file.read())
-        print_if_v(numbers)
+        numbers = decode(stream_param.infile.read())
+        print_if_v(f"Numbers in {infile_name} : {numbers}")
         results = compute_averages(numbers)
-        print_if_v(results)
+        
         for result in results:
-            output_file.write(struct.pack("<d", result))
-        print_if_v(f"stream {stream} processed")
+            stream_param.outfile.write(struct.pack("<d", result))
+        print_if_v(f"\nAverages written in {outfile_name} : {results}")
+        print_if_v(f"{stream_param} processed")
    
 
 if __name__ == "__main__":
@@ -60,7 +65,7 @@ if __name__ == "__main__":
             outfile = sys.stdout.buffer
         else:
             outfile = open(outfilename, "wb")
-        stream_param = (int(win_len), infile, outfile)
+        stream_param = Stream_params(int(win_len), infile, outfile)
         stream_params.append(stream_param)
-        print_if_v(f"stream_param {stream_param} added.")
+        print_if_v(f"{stream_param} added.")
     process_streams(stream_params)
