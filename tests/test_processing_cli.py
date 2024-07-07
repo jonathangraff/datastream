@@ -93,7 +93,6 @@ class BasicTests(_BaseTestClass):
                 stdout=f,
                 check=True,
             )
-
         self.assertTrue(filecmp.cmp(OUT_DATA, REF_OUT_DATA, shallow=False))
         
 

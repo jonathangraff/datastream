@@ -33,7 +33,7 @@ def create_dict_from_args(args: str):
 def set_of_newly_available_pipes(available_pipes, pipelist):
     current_available_pipes = set()
     for pipe in pipelist:
-        if os.path.exists(pipe):
+        if os.path.exists(pipe) or pipe == '-':
             current_available_pipes.add(pipe)
     newly_available_pipes = current_available_pipes - available_pipes
     return newly_available_pipes
@@ -62,7 +62,6 @@ def process_streams(stream_params):
             
             for result in results:
                 stream_param.outfile.write(struct.pack("<d", result))
-            stream_param.outfile.close()
             print_if_v(f"\nAverages written in {outfile_name} : {results}")
             print_if_v(f"{stream_param} processed")
    
@@ -74,17 +73,18 @@ if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "v", "verbose")
     VERBOSE_OPT = len(opts) > 0 and opts[0][0] in {'-v', '--verbose'}
     dic_args = create_dict_from_args(args)
+    pipelist = dic_args.keys()
+    print_if_v(f"NPipelist : {pipelist}")
     available_pipes = set()
+    newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
     now = time()
-    while time() < now + time_to_process_files_in_seconds:
-        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist=dic_args.keys())
+    while time() < now + time_to_process_files_in_seconds and available_pipes != pipelist:
         if newly_available_pipes:
             print_if_v(f"Newly available pipes : {newly_available_pipes}")
             for infilename in newly_available_pipes:
                 win_len, outfilename = dic_args[infilename]
-                print_if_v(infilename)
+                print_if_v(f"dealing with {infilename}")
                 infile = sys.stdin.buffer if infilename == "-" else open(infilename, "rb")
-                print('xxx')
                 outfile = sys.stdout.buffer if outfilename == "-" else open(outfilename, "wb")
                 stream_param = Stream_params(int(win_len), infile, outfile)
                 stream_params.append(stream_param)
@@ -92,4 +92,5 @@ if __name__ == "__main__":
             available_pipes |= newly_available_pipes
             print_if_v(f"Available pipes : {available_pipes}")
         process_streams(stream_params)
+        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist=dic_args.keys())
     print_if_v("End of listening")
