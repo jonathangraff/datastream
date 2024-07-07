@@ -23,9 +23,11 @@ def wait_for_file_to_exist(infilename: str, timeout_in_seconds: int):
         if time() > now + timeout_in_seconds:
             raise Exception(f"Waiting for {infilename} for more than {timeout_in_seconds} seconds.") 
 
-def create_dict_from_args(args: str):
+def create_dict_from_args(args: list[str]):
+    print(f"args : {args}")
     dic_args = {}
     for arg in args:
+        print(f"arg : {arg}")
         win_len, infilename, outfilename = arg.split(",")
         dic_args[infilename] = (win_len, outfilename)
     return dic_args
@@ -67,25 +69,26 @@ def process_streams(stream_params):
    
 
 if __name__ == "__main__":
-    
     stream_params = []
+    print(sys.argv[1:])
     opts, args = getopt.getopt(sys.argv[1:], "vt:", ["verbose", "time ="])
     opts_name = {opt[0] for opt in opts}
     VERBOSE_OPT = len(opts_name.intersection({'-v', '--verbose'})) > 0
     WITH_TIME = len(opts_name.intersection({'-t', '--time'})) > 0
-    print_if_v(WITH_TIME)
     if WITH_TIME:
         time_to_process_files_in_seconds = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
-        print_if_v(time_to_process_files_in_seconds)
+        
     dic_args = create_dict_from_args(args)
     pipelist = dic_args.keys()
-    print_if_v(f"Pipelist : {pipelist}")
+    print(f"Pipelist : {pipelist}")
     
     available_pipes = set()
     newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
     start = time()
+    
     while (WITH_TIME and time() < start + time_to_process_files_in_seconds) or available_pipes != pipelist:
         if newly_available_pipes:
+            
             print_if_v(f"Newly available pipes : {newly_available_pipes}")
             for infilename in newly_available_pipes:
                 win_len, outfilename = dic_args[infilename]
@@ -97,6 +100,9 @@ if __name__ == "__main__":
                 print_if_v(f"{stream_param} added.")
             available_pipes |= newly_available_pipes
             print_if_v(f"Available pipes : {available_pipes}")
+        
         process_streams(stream_params)
         newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
+        if len(newly_available_pipes) != 0:
+            print(newly_available_pipes)
     print_if_v("End of listening")
