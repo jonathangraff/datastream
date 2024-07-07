@@ -4,7 +4,6 @@ import os
 import shlex
 import subprocess
 import unittest
-from time import sleep
 from pathlib import Path
 from shutil import which
 from typing import Union
@@ -133,16 +132,3 @@ class AdvancedTests(_BaseTestClass):
         self.assertEqual(process.poll(), 0)
         for i in (1, 2):
             self.assertTrue(filecmp.cmp(f"{OUT_DATA}{i}", REF_OUT_DATA, shallow=False))
-
-    # def test_launch_script_then_datastream(self):
-    #     subprocess.run(
-    #         shlex.split(f"{PROCESS} {_arg(1)} {_arg(2)}"),
-    #         check=True,
-    #     )
-    #     sleep(0.5)
-    #     process = subprocess.Popen(
-    #         shlex.split(datastream(f"{TMP_PIPE}1", f"{TMP_PIPE}2"))
-    #     )
-    #     self.assertEqual(process.poll(), 0)
-    #     for i in (1, 2):
-    #         self.assertTrue(filecmp.cmp(f"{OUT_DATA}{i}", REF_OUT_DATA, shallow=False))
