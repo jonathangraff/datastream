@@ -17,18 +17,13 @@ def print_if_v(message):
         print(message)
 
 
-def wait_for_file_to_exist(infilename: str, timeout_in_seconds: int):
-    now = time()
-    while not os.path.exists(infilename):
-        if time() > now + timeout_in_seconds:
-            raise Exception(f"Waiting for {infilename} for more than {timeout_in_seconds} seconds.") 
-
 def create_dict_from_args(args: str):
     dic_args = {}
     for arg in args:
         win_len, infilename, outfilename = arg.split(",")
         dic_args[infilename] = (win_len, outfilename)
     return dic_args
+
 
 def set_of_newly_available_pipes(available_pipes, pipelist):
     current_available_pipes = set()
@@ -68,23 +63,24 @@ def process_streams(stream_params):
 
 if __name__ == "__main__":
     
-    stream_params = []
     opts, args = getopt.getopt(sys.argv[1:], "vt:", ["verbose", "time ="])
     opts_name = {opt[0] for opt in opts}
     VERBOSE_OPT = len(opts_name.intersection({'-v', '--verbose'})) > 0
     WITH_TIME = len(opts_name.intersection({'-t', '--time'})) > 0
     print_if_v(WITH_TIME)
     if WITH_TIME:
-        time_to_process_files_in_seconds = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
-        print_if_v(time_to_process_files_in_seconds)
+        time_to_read_in_seconds = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
+        print_if_v(time_to_read_in_seconds)
     dic_args = create_dict_from_args(args)
     pipeset = set(dic_args.keys())
     print_if_v(f"Pipeset : {pipeset}")
     
+    stream_params = []
     available_pipes = set()
     newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipeset)
+    print_if_v(f"Newly_available pipes : {newly_available_pipes}")
     start = time()
-    while (WITH_TIME and time() < start + time_to_process_files_in_seconds) or available_pipes != pipeset:
+    while (WITH_TIME and time() < start + time_to_read_in_seconds) or (not WITH_TIME and available_pipes != pipeset):
         if newly_available_pipes:
             print_if_v(f"Newly available pipes : {newly_available_pipes}")
             for infilename in newly_available_pipes:
@@ -99,4 +95,7 @@ if __name__ == "__main__":
             print_if_v(f"Available pipes : {available_pipes}")
         process_streams(stream_params)
         newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipeset)
+    
+    if WITH_TIME and time() > start + time_to_read_in_seconds and available_pipes != pipeset:
+        raise Exception(f"The pipes {','.join([pipe for pipe in pipeset - available_pipes])} are not present after {time_to_read_in_seconds} seconds.")
     print_if_v("End of listening")
