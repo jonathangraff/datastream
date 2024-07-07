@@ -68,17 +68,23 @@ def process_streams(stream_params):
 
 if __name__ == "__main__":
     
-    time_to_process_files_in_seconds = 5
     stream_params = []
-    opts, args = getopt.getopt(sys.argv[1:], "v", "verbose")
-    VERBOSE_OPT = len(opts) > 0 and opts[0][0] in {'-v', '--verbose'}
+    opts, args = getopt.getopt(sys.argv[1:], "vt:", ["verbose", "time ="])
+    opts_name = {opt[0] for opt in opts}
+    VERBOSE_OPT = len(opts_name.intersection({'-v', '--verbose'})) > 0
+    WITH_TIME = len(opts_name.intersection({'-t', '--time'})) > 0
+    print_if_v(WITH_TIME)
+    if WITH_TIME:
+        time_to_process_files_in_seconds = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
+        print_if_v(time_to_process_files_in_seconds)
     dic_args = create_dict_from_args(args)
     pipelist = dic_args.keys()
-    print_if_v(f"NPipelist : {pipelist}")
+    print_if_v(f"Pipelist : {pipelist}")
+    
     available_pipes = set()
     newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
-    now = time()
-    while time() < now + time_to_process_files_in_seconds and available_pipes != pipelist:
+    start = time()
+    while (WITH_TIME and time() < start + time_to_process_files_in_seconds) or available_pipes != pipelist:
         if newly_available_pipes:
             print_if_v(f"Newly available pipes : {newly_available_pipes}")
             for infilename in newly_available_pipes:
@@ -92,5 +98,5 @@ if __name__ == "__main__":
             available_pipes |= newly_available_pipes
             print_if_v(f"Available pipes : {available_pipes}")
         process_streams(stream_params)
-        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist=dic_args.keys())
+        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
     print_if_v("End of listening")
