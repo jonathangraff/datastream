@@ -5,7 +5,7 @@ import sys
 import os.path
 import struct
 import getopt
-from time import time
+from time import time, sleep
 from pathlib import Path
 
 from model.stream import Stream_params
@@ -17,6 +17,28 @@ def print_if_v(message):
         print(message)
 
 
+def wait_for_file_to_exist(infilename: str, timeout_in_seconds: int):
+    now = time()
+    while not os.path.exists(infilename):
+        if time() > now + timeout_in_seconds:
+            raise Exception(f"Waiting for {infilename} for more than {timeout_in_seconds} seconds.") 
+
+def create_dict_from_args(args: str):
+    dic_args = {}
+    for arg in args:
+        win_len, infilename, outfilename = arg.split(",")
+        dic_args[infilename] = (win_len, outfilename)
+    return dic_args
+
+def set_of_newly_available_pipes(available_pipes, pipelist):
+    current_available_pipes = set()
+    for pipe in pipelist:
+        if os.path.exists(pipe):
+            current_available_pipes.add(pipe)
+    newly_available_pipes = current_available_pipes - available_pipes
+    return newly_available_pipes
+        
+
 def process_streams(stream_params):
     def decode(buffer):
         n = len(buffer) // 8
@@ -27,45 +49,47 @@ def process_streams(stream_params):
             return None
         outputs_number = len(numbers) - win_len + 1
         return [sum(numbers[i : i + win_len]) / win_len for i in range(outputs_number)]
-    print_if_v("Processing streams...")
     
     for stream_param in stream_params:
         win_len = stream_param.win_len
         infile_name = stream_param.infile.name
         outfile_name = stream_param.outfile.name
-        if os.path.exists(ROOT / outfile_name):
-            os.remove(ROOT / outfile_name)
-
-        numbers = decode(stream_param.infile.read())
-        print_if_v(f"Numbers in {infile_name} : {numbers}")
-        results = compute_averages(numbers)
-        
-        for result in results:
-            stream_param.outfile.write(struct.pack("<d", result))
-        print_if_v(f"\nAverages written in {outfile_name} : {results}")
-        print_if_v(f"{stream_param} processed")
+        buffer = stream_param.infile.read()
+        if buffer:
+            numbers = decode(buffer)
+            print_if_v(f"Numbers in {infile_name} : {numbers}")
+            results = compute_averages(numbers)
+            
+            for result in results:
+                stream_param.outfile.write(struct.pack("<d", result))
+            stream_param.outfile.close()
+            print_if_v(f"\nAverages written in {outfile_name} : {results}")
+            print_if_v(f"{stream_param} processed")
    
 
 if __name__ == "__main__":
-    timeout_in_seconds = 10
+    
+    time_to_process_files_in_seconds = 5
     stream_params = []
     opts, args = getopt.getopt(sys.argv[1:], "v", "verbose")
     VERBOSE_OPT = len(opts) > 0 and opts[0][0] in {'-v', '--verbose'}
-    for arg in args:
-        win_len, infilename, outfilename = arg.split(",")
-        if infilename == "-":
-            infile = sys.stdin.buffer
-        else:
-            now = time()
-            while not os.path.exists(infilename):
-                if time() > now + timeout_in_seconds:
-                    raise Exception(f"Waiting for {infilename} for more than {timeout_in_seconds} seconds.") 
-            infile = open(infilename, "rb")
-        if outfilename == "-":
-            outfile = sys.stdout.buffer
-        else:
-            outfile = open(outfilename, "wb")
-        stream_param = Stream_params(int(win_len), infile, outfile)
-        stream_params.append(stream_param)
-        print_if_v(f"{stream_param} added.")
-    process_streams(stream_params)
+    dic_args = create_dict_from_args(args)
+    available_pipes = set()
+    now = time()
+    while time() < now + time_to_process_files_in_seconds:
+        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist=dic_args.keys())
+        if newly_available_pipes:
+            print_if_v(f"Newly available pipes : {newly_available_pipes}")
+            for infilename in newly_available_pipes:
+                win_len, outfilename = dic_args[infilename]
+                print_if_v(infilename)
+                infile = sys.stdin.buffer if infilename == "-" else open(infilename, "rb")
+                print('xxx')
+                outfile = sys.stdout.buffer if outfilename == "-" else open(outfilename, "wb")
+                stream_param = Stream_params(int(win_len), infile, outfile)
+                stream_params.append(stream_param)
+                print_if_v(f"{stream_param} added.")
+            available_pipes |= newly_available_pipes
+            print_if_v(f"Available pipes : {available_pipes}")
+        process_streams(stream_params)
+    print_if_v("End of listening")

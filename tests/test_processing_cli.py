@@ -32,7 +32,7 @@ def pick_python() -> str:
 
 
 DATASTREAM = ROOT_DIR / "datastream.sh"
-PROCESS = f"{pick_python()} {ROOT_DIR / 'processing/run.py'}"
+PROCESS = f"{pick_python()} {ROOT_DIR / 'run.py'}"
 
 
 def datastream(*streams: Union[StrOrPath, tuple[int, StrOrPath]], parallel=False):
@@ -62,9 +62,7 @@ def _cleanup_files():
         for f in glob.glob(f"{base_f}*"):
             os.remove(f)
 
-
 # tests
-
 
 class _BaseTestClass(unittest.TestCase):
     def setUp(self):
@@ -84,7 +82,7 @@ class BasicTests(_BaseTestClass):
         self.assertEqual(process.poll(), 0)
         self.assertTrue(filecmp.cmp(OUT_DATA, REF_OUT_DATA, shallow=False))
 
-    def test_stdout_stdin(self):
+    def test_stdin_stdout(self):
         process = subprocess.run(
             shlex.split(datastream("-")), stdout=subprocess.PIPE, check=True
         )
@@ -97,7 +95,7 @@ class BasicTests(_BaseTestClass):
             )
 
         self.assertTrue(filecmp.cmp(OUT_DATA, REF_OUT_DATA, shallow=False))
-
+        
 
 class AdvancedTests(_BaseTestClass):
     def test_multiple_right_order(self):
