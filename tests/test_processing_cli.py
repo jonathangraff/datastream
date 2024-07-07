@@ -136,6 +136,8 @@ class AdvancedTests(_BaseTestClass):
 
     def test_launch_script_then_datastream(self):
         # this test doesn't pass, I don't understand why the process1 doesn't end, as I can read that the script finished.
+        # It works outside of unittests.
+        
         pass
         # process1 = subprocess.Popen(
         #     shlex.split(f"{PROCESS} -v {_arg()}"),

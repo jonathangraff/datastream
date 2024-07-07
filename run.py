@@ -5,19 +5,21 @@ import sys
 import os.path
 import struct
 import getopt
-from time import time, sleep
+from time import time
 from pathlib import Path
 
 from model.stream import Stream_params
 
 ROOT = Path(__file__).parent
 
-def print_if_v(message):
+def print_if_v(message: str):
+    """prints if the -v option has been put"""
     if VERBOSE_OPT:
         print(message)
 
 
-def create_dict_from_args(args: str):
+def create_dict_from_args(args: str) -> dict[str, tuple[str, str]]:
+    """creates a dictionary where the keys are the infile and the values are a tuple of win_len and outfile"""
     dic_args = {}
     for arg in args:
         win_len, infilename, outfilename = arg.split(",")
@@ -25,13 +27,15 @@ def create_dict_from_args(args: str):
     return dic_args
 
 
-def set_of_newly_available_pipes(available_pipes, pipelist):
-    current_available_pipes = set()
-    for pipe in pipelist:
-        if os.path.exists(pipe) or pipe == '-':
-            current_available_pipes.add(pipe)
-    newly_available_pipes = current_available_pipes - available_pipes
-    return newly_available_pipes
+def set_of_newly_available_pipes(pipes_to_check: set[str]) -> set[str]:
+    """
+    gets the set of pipes that are now available
+    @param available_pipes : the set of the pipes already availables
+    @param pipeset : the set of all the pipes expeceted to be used
+    @return : the set of newly available pipes
+    """
+    
+    return {pipe for pipe in pipes_to_check if os.path.exists(pipe) or pipe == '-'}
         
 
 def process_streams(stream_params):
@@ -76,11 +80,9 @@ if __name__ == "__main__":
     print_if_v(f"Pipeset : {pipeset}")
     
     stream_params = []
-    available_pipes = set()
-    newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipeset)
-    print_if_v(f"Newly_available pipes : {newly_available_pipes}")
+    newly_available_pipes = set_of_newly_available_pipes(pipeset)
     start = time()
-    while (WITH_TIME and time() < start + time_to_read_in_seconds) or (not WITH_TIME and available_pipes != pipeset):
+    while (WITH_TIME and time() < start + time_to_read_in_seconds) or (not WITH_TIME and len(pipeset) > 0):
         if newly_available_pipes:
             print_if_v(f"Newly available pipes : {newly_available_pipes}")
             for infilename in newly_available_pipes:
@@ -91,11 +93,11 @@ if __name__ == "__main__":
                 stream_param = Stream_params(int(win_len), infile, outfile)
                 stream_params.append(stream_param)
                 print_if_v(f"{stream_param} added.")
-            available_pipes |= newly_available_pipes
-            print_if_v(f"Available pipes : {available_pipes}")
+            pipeset -= newly_available_pipes
+            print_if_v(f"Pipes left to check : {pipeset}")
         process_streams(stream_params)
-        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipeset)
+        newly_available_pipes = set_of_newly_available_pipes(pipeset)
     
-    if WITH_TIME and time() > start + time_to_read_in_seconds and available_pipes != pipeset:
-        raise Exception(f"The pipes {','.join([pipe for pipe in pipeset - available_pipes])} are not present after {time_to_read_in_seconds} seconds.")
+    if WITH_TIME and time() > start + time_to_read_in_seconds and len(pipeset) > 0:
+        raise Exception(f"The pipes {','.join([pipe for pipe in pipeset])} are not present after {time_to_read_in_seconds} seconds.")
     print_if_v("End of listening")
