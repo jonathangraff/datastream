@@ -78,13 +78,13 @@ if __name__ == "__main__":
         time_to_process_files_in_seconds = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
         print_if_v(time_to_process_files_in_seconds)
     dic_args = create_dict_from_args(args)
-    pipelist = dic_args.keys()
-    print_if_v(f"Pipelist : {pipelist}")
+    pipeset = set(dic_args.keys())
+    print_if_v(f"Pipeset : {pipeset}")
     
     available_pipes = set()
-    newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
+    newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipeset)
     start = time()
-    while (WITH_TIME and time() < start + time_to_process_files_in_seconds) or available_pipes != pipelist:
+    while (WITH_TIME and time() < start + time_to_process_files_in_seconds) or available_pipes != pipeset:
         if newly_available_pipes:
             print_if_v(f"Newly available pipes : {newly_available_pipes}")
             for infilename in newly_available_pipes:
@@ -98,5 +98,5 @@ if __name__ == "__main__":
             available_pipes |= newly_available_pipes
             print_if_v(f"Available pipes : {available_pipes}")
         process_streams(stream_params)
-        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipelist)
+        newly_available_pipes = set_of_newly_available_pipes(available_pipes, pipeset)
     print_if_v("End of listening")
