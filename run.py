@@ -7,6 +7,7 @@ import struct
 import getopt
 from time import time
 from pathlib import Path
+from typing import Union, Any
 
 from model.stream import Stream_params
 
@@ -18,6 +19,13 @@ def print_if_v(message: str):
         print(message)
 
 
+def get_seconds_to_listen(opts):
+    """returns from the options the number of seconds the process will listen to the pipes"""
+    
+    seconds_to_listen = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
+    print_if_v(f"The reading will occur for {seconds_to_listen} seconds.")
+    return seconds_to_listen
+
 def create_dict_from_args(args: str) -> dict[str, tuple[str, str]]:
     """creates a dictionary where the keys are the infile and the values are a tuple of win_len and outfile"""
     dic_args = {}
@@ -27,42 +35,81 @@ def create_dict_from_args(args: str) -> dict[str, tuple[str, str]]:
     return dic_args
 
 
-def set_of_newly_available_pipes(pipes_to_check: set[str]) -> set[str]:
+def get_pipes_to_read(dic_args):
+    """gets the set of the pipes to read from the options
+    Args:
+        dic_args (dict): the dictionary built from the args
+    Returns:
+        set: the set of pipes
+    """
+    pipes_set = set(dic_args.keys())
+    print_if_v(f"Set of pipes expected : {pipes_set}")
+    return pipes_set
+
+def get_newly_available_pipes_set(pipes_to_check: set[str]) -> set[str]:
     """
     gets the set of pipes that are now available
     @param available_pipes : the set of the pipes already availables
     @param pipeset : the set of all the pipes expeceted to be used
     @return : the set of newly available pipes
     """
-    
-    return {pipe for pipe in pipes_to_check if os.path.exists(pipe) or pipe == '-'}
+    newly_available_pipes = {pipe for pipe in pipes_to_check if os.path.exists(pipe) or pipe == '-'}
+    if newly_available_pipes:
+        print_if_v(f"Newly available pipes : {newly_available_pipes}")
+    return newly_available_pipes
         
+def add_stream_param(infilename: str) -> None:
+    """
+    update the list stream_params with the stream given by the infilename 
+    """
+    win_len, outfilename = dic_args[infilename]
+    print_if_v(f"Dealing with {infilename}")
+    infile = sys.stdin.buffer if infilename == "-" else open(infilename, "rb")
+    outfile = sys.stdout.buffer if outfilename == "-" else open(outfilename, "wb")
+    stream_param = Stream_params(int(win_len), infile, outfile)
+    stream_params.append(stream_param)
+    print_if_v(f"{stream_param} added.")
 
-def process_streams(stream_params):
-    def decode(buffer):
+
+def process_streams(stream_params: Stream_params):
+    def decode(buffer: bytes) -> list[float]:
+        """
+        reads the binary data from the buffer and returns the list of corresponding numbers
+        Args:
+            buffer : the binary data
+        Returns:
+            list[float]: the numbers read
+        """
         n = len(buffer) // 8
-        return [struct.unpack("<d", buffer[i * 8 : (i + 1) * 8])[0] for i in range(n)]
+        numbers = [struct.unpack("<d", buffer[i * 8 : (i + 1) * 8])[0] for i in range(n)]
+        print_if_v(f"Numbers in {infile_name} : {numbers}")
+        return numbers
     
-    def compute_averages(numbers):
+    def compute_averages(numbers: list[float]) -> Union[None, list[float]]:
+        """Computes the moving averages list given the ones in numbers, if the list doesn't have enough numbers, it returns None.
+        Args:
+            numbers (list[float]): the numbers to compute averages
+        Returns:
+            Union[None, list[float]]: the list of averages
+        """
         if len(numbers) < win_len:
             return None
         outputs_number = len(numbers) - win_len + 1
         return [sum(numbers[i : i + win_len]) / win_len for i in range(outputs_number)]
     
+    def write_averages_in_file(results, outfile):
+        for result in results:
+            outfile.write(struct.pack("<d", result))
+        print_if_v(f"\nAverages written in {outfile_name} : {results}")
+        
     for stream_param in stream_params:
-        win_len = stream_param.win_len
-        infile_name = stream_param.infile.name
-        outfile_name = stream_param.outfile.name
+        win_len, infile_name, outfile_name = stream_param.win_len, stream_param.infile.name, stream_param.outfile.name
         buffer = stream_param.infile.read()
         if buffer:
             numbers = decode(buffer)
-            print_if_v(f"Numbers in {infile_name} : {numbers}")
             results = compute_averages(numbers)
-            
-            for result in results:
-                stream_param.outfile.write(struct.pack("<d", result))
-            print_if_v(f"\nAverages written in {outfile_name} : {results}")
-            print_if_v(f"{stream_param} processed")
+            write_averages_in_file(results, stream_param.outfile)
+        print_if_v(f"{stream_param} processed")
    
 
 if __name__ == "__main__":
@@ -71,33 +118,26 @@ if __name__ == "__main__":
     opts_name = {opt[0] for opt in opts}
     VERBOSE_OPT = len(opts_name.intersection({'-v', '--verbose'})) > 0
     WITH_TIME = len(opts_name.intersection({'-t', '--time'})) > 0
-    print_if_v(WITH_TIME)
+    
     if WITH_TIME:
-        time_to_read_in_seconds = int([opt[1] for opt in opts if opt[0] in {'-t', '--time'}][0])
-        print_if_v(time_to_read_in_seconds)
+        seconds_to_listen = get_seconds_to_listen(opts)
+    
     dic_args = create_dict_from_args(args)
-    pipeset = set(dic_args.keys())
-    print_if_v(f"Pipeset : {pipeset}")
+    pipes_set = get_pipes_to_read(dic_args)
     
     stream_params = []
-    newly_available_pipes = set_of_newly_available_pipes(pipeset)
+    newly_available_pipes = get_newly_available_pipes_set(pipes_set)
     start = time()
-    while (WITH_TIME and time() < start + time_to_read_in_seconds) or (not WITH_TIME and len(pipeset) > 0):
-        if newly_available_pipes:
-            print_if_v(f"Newly available pipes : {newly_available_pipes}")
-            for infilename in newly_available_pipes:
-                win_len, outfilename = dic_args[infilename]
-                print_if_v(f"dealing with {infilename}")
-                infile = sys.stdin.buffer if infilename == "-" else open(infilename, "rb")
-                outfile = sys.stdout.buffer if outfilename == "-" else open(outfilename, "wb")
-                stream_param = Stream_params(int(win_len), infile, outfile)
-                stream_params.append(stream_param)
-                print_if_v(f"{stream_param} added.")
-            pipeset -= newly_available_pipes
-            print_if_v(f"Pipes left to check : {pipeset}")
-        process_streams(stream_params)
-        newly_available_pipes = set_of_newly_available_pipes(pipeset)
     
-    if WITH_TIME and time() > start + time_to_read_in_seconds and len(pipeset) > 0:
-        raise Exception(f"The pipes {','.join([pipe for pipe in pipeset])} are not present after {time_to_read_in_seconds} seconds.")
+    while (WITH_TIME and time() < start + seconds_to_listen) or (not WITH_TIME and len(pipes_set) > 0):
+        if newly_available_pipes:
+            for infilename in newly_available_pipes:
+                add_stream_param(infilename)
+            pipes_set -= newly_available_pipes
+            print_if_v(f"Pipes left to check : {pipes_set}")
+        process_streams(stream_params)
+        newly_available_pipes = get_newly_available_pipes_set(pipes_set)
+    
+    if WITH_TIME and time() > start + seconds_to_listen and len(pipes_set) > 0:
+        raise Exception(f"The pipes {','.join([pipe for pipe in pipes_set])} are not present after {seconds_to_listen} seconds.")
     print_if_v("End of listening")
