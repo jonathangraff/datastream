@@ -1,7 +1,7 @@
 import sys
 import os.path
 import struct
-import getopt
+from getopt import getopt
 from time import time
 from pathlib import Path
 from typing import Union
@@ -143,7 +143,7 @@ def process_streams(stream_params: Stream_params) -> None:
 
 if __name__ == "__main__":
     
-    opts, args = getopt.getopt(sys.argv[1:], "vt:", ["verbose", "time ="])
+    opts, args = getopt(sys.argv[1:], "vt:", ["verbose", "time ="])
     print(opts, args)
     opts_name = {opt[0] for opt in opts}
     VERBOSE_OPT = len(opts_name.intersection({'-v', '--verbose'})) > 0
