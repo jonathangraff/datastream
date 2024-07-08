@@ -81,7 +81,6 @@ def add_stream_param(infilename: str) -> None:
     print_if_v(f"Dealing with {infilename}")
     infile = sys.stdin.buffer if infilename == "-" else open(infilename, "rb")
     outfile = sys.stdout.buffer if outfilename == "-" else open(outfilename, "wb")
-    print(type(outfile))
     stream_param = Stream_params(int(win_len), infile, outfile)
     stream_params.append(stream_param)
     print_if_v(f"{stream_param} added.")
@@ -144,7 +143,6 @@ def process_streams(stream_params: Stream_params) -> None:
 if __name__ == "__main__":
     
     opts, args = getopt(sys.argv[1:], "vt:", ["verbose", "time ="])
-    print(opts, args)
     opts_name = {opt[0] for opt in opts}
     VERBOSE_OPT = len(opts_name.intersection({'-v', '--verbose'})) > 0
     WITH_TIME = len(opts_name.intersection({'-t', '--time'})) > 0
